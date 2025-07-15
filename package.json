@@ -12,8 +12,10 @@
   "dependencies": {
     "@vitejs/plugin-react": "^4.6.0",
     "better-sqlite3": "^12.2.0",
+    "connect-sqlite3": "^0.9.16",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "express-session": "^1.18.1",
     "leaflet": "^1.9.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
