@@ -6,11 +6,12 @@ import session from 'express-session';
 import SQLiteStore from 'connect-sqlite3';
 
 const app = express();
+const PORT = 3000;
 const db = new Database('./database/discoverhealth.db');
 const SQLiteSessionStore = SQLiteStore(session);
 
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+app.use(cors({ origin: `http://localhost:${PORT}`, credentials: true }));
 app.use(
   session({
     store: new SQLiteSessionStore({
@@ -90,6 +91,6 @@ app.get('/api/user', (req, res) => {
 import resourcesRouter from './routes/resources.mjs';
 app.use('/api', resourcesRouter);
 
-ViteExpress.listen(app, 3000, () =>
-  console.log('Server is listening on port 3000...')
+ViteExpress.listen(app, PORT, () =>
+  console.log(`Server is listening on http://localhost:${PORT}`)
 );
