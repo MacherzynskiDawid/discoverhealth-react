@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import PropTypes from 'prop-types';
-import '../styles/leaflet-overrides.css'; // Part G: Import CSS overrides for compatibility
+import { createRoot } from 'react-dom/client';
+import '../styles/leaflet-overrides.css';
 
-// Task 13: Reusable ReviewForm component for marker popups
+// ReviewForm component
 function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,7 +18,7 @@ function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
       return;
     }
     try {
-      // console.log('Submitting review for resource:', resource.id, 'User:', user);
+      console.log('Submitting review for resource:', resource.id, 'User:', user);
       const response = await fetch(`http://localhost:3000/api/resources/${resource.id}/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,14 +42,14 @@ function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
         const errorMsg = data.error || 'Failed to submit review';
         setReviewStatus({ ...reviewStatus, [resource.id]: errorMsg });
         statusDiv.style.color = 'red';
-        statusDiv.textContent = errorMsg; // Handles "You must be logged in to perform this action"
-        // console.error('Review submission failed:', errorMsg);
+        statusDiv.textContent = errorMsg;
+        console.error('Review submission failed:', errorMsg);
       }
     } catch (err) {
       setReviewStatus({ ...reviewStatus, [resource.id]: 'Error: ' + err.message });
       statusDiv.style.color = 'red';
       statusDiv.textContent = 'Error: ' + err.message;
-      // console.error('Review submission error:', err.message);
+      console.error('Review submission error:', err.message);
     }
   };
 
@@ -98,6 +99,21 @@ ReviewForm.propTypes = {
   setReviewStatus: PropTypes.func.isRequired
 };
 
+// Function to create popup content
+function createPopupContent(resource, user, reviewStatus, setReviewStatus) {
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  root.render(
+    <ReviewForm
+      resource={resource}
+      user={user}
+      reviewStatus={reviewStatus}
+      setReviewStatus={setReviewStatus}
+    />
+  );
+  return container;
+}
+
 export default function ResourceSearch({ user }) {
   const [region, setRegion] = useState('');
   const [resources, setResources] = useState([]);
@@ -108,12 +124,12 @@ export default function ResourceSearch({ user }) {
 
   // Log user prop for debugging
   useEffect(() => {
-    // console.log('ResourceSearch user prop:', user);
+    console.log('ResourceSearch user prop:', user);
   }, [user]);
 
-  // Task 4 & 8: Initialize Leaflet map for resource display
+  // Initialize Leaflet map
   useEffect(() => {
-    // console.log('Initializing ResourceSearch map');
+    console.log('Initializing ResourceSearch map');
     if (!mapRef.current) {
       mapRef.current = L.map('map', {
         center: [50.9079, -1.4015], // Southampton
@@ -135,7 +151,7 @@ export default function ResourceSearch({ user }) {
     // Cleanup on unmount
     return () => {
       if (mapRef.current) {
-        // console.log('Cleaning up ResourceSearch map');
+        console.log('Cleaning up ResourceSearch map');
         mapRef.current.remove();
         mapRef.current = null;
         markersRef.current = [];
@@ -143,12 +159,44 @@ export default function ResourceSearch({ user }) {
     };
   }, []);
 
-  // Task 4: Fetch resources by region using AJAX
+  // Update markers when user prop changes
+  useEffect(() => {
+    if (resources.length > 0) {
+      console.log('Updating markers due to user change:', user);
+      updateMarkers();
+    }
+  }, [user, resources, reviewStatus]);
+
+  // Function to update markers
+  const updateMarkers = () => {
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    // Add new markers
+    resources.forEach(resource => {
+      if (resource.lat && resource.lon) {
+        const popupContent = createPopupContent(resource, user, reviewStatus, setReviewStatus);
+        const marker = L.marker([resource.lat, resource.lon])
+          .addTo(mapRef.current)
+          .bindPopup(popupContent, { autoClose: false, closeOnClick: false });
+        markersRef.current.push(marker);
+      }
+    });
+
+    // Adjust map view if resources exist
+    if (resources.length > 0 && resources[0].lat && resources[0].lon) {
+      const bounds = L.latLngBounds(resources.map(r => [r.lat, r.lon]).filter(([lat, lon]) => lat && lon));
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+    }
+  };
+
+  // Fetch resources by region
   const handleSearch = async () => {
     try {
-      // console.log('Searching resources for region:', region);
+      console.log('Searching resources for region:', region);
       const response = await fetch(`http://localhost:3000/api/resources/${encodeURIComponent(region)}`, {
-        credentials: 'include' // Task 10: Include session for login check
+        credentials: 'include'
       });
       if (!response.ok) {
         throw new Error('Failed to fetch resources');
@@ -156,119 +204,27 @@ export default function ResourceSearch({ user }) {
       const data = await response.json();
       setResources(data);
       setError(null);
-
-      // Task 8: Clear and add markers for resources
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
-
-      data.forEach(resource => {
-        if (resource.lat && resource.lon) {
-          // Task 13: Add review form to marker popup with green success and red error messages
-          const popupContent = document.createElement('div');
-          popupContent.innerHTML = `
-            <b>${resource.name}</b><br>
-            ${resource.description || 'No description'}<br>
-            ${user && user.username ? `
-              <form id="review-form-${resource.id}">
-                <textarea id="review-input-${resource.id}" name="review-${resource.id}" placeholder="Write your review" rows="3" style="width:100%" autocomplete="off"></textarea><br>
-                <button type="submit" style="padding:5px 10px">Submit Review</button>
-              </form>
-            ` : '<p style="color:red">You must be logged in to submit a review</p>'}
-            <div id="review-status-${resource.id}" style="color:${reviewStatus[resource.id]?.includes('successfully') ? 'green' : 'red'}; font-weight:bold; margin-top:5px;">
-              ${reviewStatus[resource.id] || ''}
-            </div>
-          `;
-          const marker = L.marker([resource.lat, resource.lon])
-            .addTo(mapRef.current)
-            .bindPopup(popupContent, { autoClose: false, closeOnClick: false });
-          markersRef.current.push(marker);
-
-          // Task 13: Handle review form submission
-          if (user && user.username) {
-            marker.on('popupopen', () => {
-              const form = popupContent.querySelector(`#review-form-${resource.id}`);
-              if (form) {
-                form.addEventListener('submit', async (e) => {
-                  e.preventDefault();
-                  const reviewText = form.querySelector(`#review-input-${resource.id}`).value;
-                  const statusDiv = popupContent.querySelector(`#review-status-${resource.id}`);
-                  if (!reviewText.trim()) {
-                    setReviewStatus({ ...reviewStatus, [resource.id]: 'Review cannot be empty' });
-                    statusDiv.style.color = 'red';
-                    statusDiv.textContent = 'Review cannot be empty';
-                    marker.openPopup();
-                    return;
-                  }
-                  try {
-                    // console.log('Submitting review for resource:', resource.id, 'User:', user);
-                    const response = await fetch(`http://localhost:3000/api/resources/${resource.id}/reviews`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ review: reviewText }),
-                      credentials: 'include'
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                      setReviewStatus({
-                        ...reviewStatus,
-                        [resource.id]: 'Thank you! Your review has been submitted successfully!'
-                      });
-                      statusDiv.style.color = 'green';
-                      statusDiv.textContent = 'Thank you! Your review has been submitted successfully!';
-                      form.querySelector(`#review-input-${resource.id}`).value = '';
-                      marker.openPopup();
-                      setTimeout(() => {
-                        setReviewStatus({ ...reviewStatus, [resource.id]: '' });
-                        statusDiv.textContent = '';
-                        marker.openPopup();
-                      }, 3000);
-                    } else {
-                      const errorMsg = data.error || 'Failed to submit review';
-                      setReviewStatus({ ...reviewStatus, [resource.id]: errorMsg });
-                      statusDiv.style.color = 'red';
-                      statusDiv.textContent = errorMsg;
-                      marker.openPopup();
-                      // console.error('Review submission failed:', errorMsg);
-                    }
-                  } catch (err) {
-                    setReviewStatus({ ...reviewStatus, [resource.id]: 'Error: ' + err.message });
-                    statusDiv.style.color = 'red';
-                    statusDiv.textContent = 'Error: ' + err.message;
-                    marker.openPopup();
-                    // console.error('Review submission error:', err.message);
-                  }
-                });
-              }
-            });
-          }
-        }
-      });
-
-      // Task 8: Adjust map view
-      if (data.length > 0 && data[0].lat && data[0].lon) {
-        const bounds = L.latLngBounds(data.map(r => [r.lat, r.lon]).filter(([lat, lon]) => lat && lon));
-        mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-      }
+      updateMarkers();
     } catch (err) {
       setError(err.message);
       setResources([]);
       markersRef.current.forEach(marker => marker.remove());
       markersRef.current = [];
-      // console.error('Search error:', err.message);
+      console.error('Search error:', err.message);
     }
   };
 
-  // Task 6: Handle resource recommendation
+  // Handle resource recommendation
   const handleRecommend = async (id) => {
     if (!user || !user.username) {
       setError('You must be logged in to recommend a resource');
       return;
     }
     try {
-      // console.log('Recommending resource:', id);
+      console.log('Recommending resource:', id);
       const response = await fetch(`http://localhost:3000/api/resources/${id}/recommend`, {
         method: 'POST',
-        credentials: 'include' // Task 11: Restrict to logged-in users
+        credentials: 'include'
       });
       if (!response.ok) {
         throw new Error('Failed to recommend resource');
@@ -281,11 +237,10 @@ export default function ResourceSearch({ user }) {
       setError(null);
     } catch (err) {
       setError(err.message);
-      // console.error('Recommend error:', err.message);
+      console.error('Recommend error:', err.message);
     }
   };
 
-  // Part G: Robust React component with clear structure
   return (
     <div style={{ padding: '20px' }}>
       <h1>DiscoverHealth - Search Resources</h1>
@@ -315,7 +270,7 @@ export default function ResourceSearch({ user }) {
             <button
               onClick={() => handleRecommend(resource.id)}
               style={{ marginLeft: '10px', padding: '5px 10px' }}
-              disabled={!user || !user.username} // Task 11: Disable if not logged in
+              disabled={!user || !user.username}
             >
               Recommend
             </button>
