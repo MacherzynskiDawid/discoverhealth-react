@@ -6,11 +6,12 @@ export default function ResourceSearch() {
   const [region, setRegion] = useState('');
   const [resources, setResources] = useState([]);
   const [error, setError] = useState(null);
+  const [reviewStatus, setReviewStatus] = useState({});
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
+  // Initialize Leaflet map
   useEffect(() => {
-    // Initialize Leaflet map
     if (!mapRef.current) {
       mapRef.current = L.map('map', {
         center: [50.9079, -1.4015], // Southampton
@@ -53,17 +54,82 @@ export default function ResourceSearch() {
       markersRef.current.forEach(marker => marker.remove());
       markersRef.current = [];
 
-      // Add markers (Task 8)
+      // Add markers with review form
       data.forEach(resource => {
         if (resource.lat && resource.lon) {
+          // Task 13: Add review form to marker popup with green success and red error messages
+          const popupContent = document.createElement('div');
+          popupContent.innerHTML = `
+            <b>${resource.name}</b><br>
+            ${resource.description || 'No description'}<br>
+            <form id="review-form-${resource.id}">
+              <textarea id="review-input-${resource.id}" placeholder="Write your review" rows="3" style="width:100%"></textarea><br>
+              <button type="submit" style="padding:5px 10px">Submit Review</button>
+            </form>
+            <div id="review-status-${resource.id}" style="color:${reviewStatus[resource.id]?.includes('successfully') ? 'green' : 'red'}; font-weight:bold; margin-top:5px;">
+              ${reviewStatus[resource.id] || ''}
+            </div>
+          `;
           const marker = L.marker([resource.lat, resource.lon])
             .addTo(mapRef.current)
-            .bindPopup(`<b>${resource.name}</b><br>${resource.description || 'No description'}`);
+            .bindPopup(popupContent, { autoClose: false, closeOnClick: false });
           markersRef.current.push(marker);
+
+          // Task 13: Handle review submission with green confirmation for success and red for errors
+          marker.on('popupopen', () => {
+            const form = popupContent.querySelector(`#review-form-${resource.id}`);
+            const statusDiv = popupContent.querySelector(`#review-status-${resource.id}`);
+            form.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              const reviewText = form.querySelector(`#review-input-${resource.id}`).value;
+              if (!reviewText.trim()) {
+                setReviewStatus({ ...reviewStatus, [resource.id]: 'Review cannot be empty' });
+                statusDiv.style.color = 'red';
+                statusDiv.textContent = 'Review cannot be empty';
+                marker.openPopup();
+                return;
+              }
+              try {
+                const response = await fetch(`http://localhost:3000/api/resources/${resource.id}/reviews`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ review: reviewText }),
+                  credentials: 'include'
+                });
+                const data = await response.json();
+                if (response.ok) {
+                  setReviewStatus({
+                    ...reviewStatus,
+                    [resource.id]: 'Thank you! Your review has been submitted successfully!'
+                  });
+                  statusDiv.style.color = 'green';
+                  statusDiv.textContent = 'Thank you! Your review has been submitted successfully!';
+                  form.querySelector(`#review-input-${resource.id}`).value = '';
+                  marker.openPopup();
+                  setTimeout(() => {
+                    setReviewStatus({ ...reviewStatus, [resource.id]: '' });
+                    statusDiv.textContent = '';
+                    marker.openPopup();
+                  }, 3000);
+                } else {
+                  const errorMsg = data.error || 'Failed to submit review';
+                  setReviewStatus({ ...reviewStatus, [resource.id]: errorMsg });
+                  statusDiv.style.color = 'red';
+                  statusDiv.textContent = errorMsg; // Handles "You must be logged in to perform this action"
+                  marker.openPopup();
+                }
+              } catch (err) {
+                setReviewStatus({ ...reviewStatus, [resource.id]: 'Error: ' + err.message });
+                statusDiv.style.color = 'red';
+                statusDiv.textContent = 'Error: ' + err.message;
+                marker.openPopup();
+              }
+            });
+          });
         }
       });
 
-      // Adjust map view to fit markers
+      // Adjust map view
       if (data.length > 0 && data[0].lat && data[0].lon) {
         const bounds = L.latLngBounds(data.map(r => [r.lat, r.lon]).filter(([lat, lon]) => lat && lon));
         mapRef.current.fitBounds(bounds, { padding: [50, 50] });

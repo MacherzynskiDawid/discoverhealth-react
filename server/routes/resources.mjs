@@ -62,4 +62,35 @@ router.post('/resources/:id/recommend', (req, res) => {
   }
 });
 
+// POST /api/resources/:id/reviews
+router.post('/resources/:id/reviews', requireLogin, (req, res) => {
+  const { id } = req.params;
+  const { review } = req.body;
+  const userId = req.session.user.id;
+
+  if (!review || review.trim() === '') {
+    return res.status(400).json({ error: 'Review cannot be empty' });
+  }
+
+  try {
+    // Check if resource exists
+    const resource = db
+      .prepare('SELECT id FROM healthcare_resources WHERE id = ?')
+      .get(id);
+    if (!resource) {
+      return res.status(404).json({ error: 'Resource not found' });
+    }
+
+    // Insert review
+    const stmt = db.prepare(
+      'INSERT INTO reviews (resource_id, user_id, review) VALUES (?, ?, ?)'
+    );
+    const info = stmt.run(id, userId, review.trim());
+    res.status(201).json({ id: info.lastInsertRowid, message: 'Review added successfully' });
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 export default router;

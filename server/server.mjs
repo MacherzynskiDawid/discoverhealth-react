@@ -18,7 +18,7 @@ app.use(
       db: 'sessions.db',
       dir: './database',
     }),
-    secret: 'your-secret-key', // Replace with a secure key in production
+    secret: 'your-secret-key', // Needs to be replaced
     resave: false,
     saveUninitialized: false,
     cookie: { maxAge: 24 * 60 * 60 * 1000 }, // 1 day
