@@ -4,11 +4,22 @@ import ViteExpress from 'vite-express';
 import Database from 'better-sqlite3';
 import session from 'express-session';
 import SQLiteStore from 'connect-sqlite3';
+import resourcesRouter from './routes/resources.mjs';
 
 const app = express();
 const PORT = 3000;
 const db = new Database('./database/discoverhealth.db');
 const SQLiteSessionStore = SQLiteStore(session);
+
+// Configurable debug logging
+const DEBUG = false; // Set to true for debugging, false for clean output
+
+app.use((req, res, next) => {
+  if (DEBUG) {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  }
+  next();
+});
 
 app.use(express.json());
 app.use(cors({ origin: `http://localhost:${PORT}`, credentials: true }));
@@ -18,7 +29,7 @@ app.use(
       db: 'sessions.db',
       dir: './database',
     }),
-    secret: 'your-secret-key', // Needs to be replaced
+    secret: 'your-secret-key', // Replace with a secure key in production
     resave: false,
     saveUninitialized: false,
     cookie: { maxAge: 24 * 60 * 60 * 1000 }, // 1 day
@@ -31,7 +42,7 @@ app.get('/api/test', (req, res) => {
 });
 
 // Login route
-app.post('/api/login', (req, res) => {
+app.post('/api/users/login', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
@@ -52,7 +63,7 @@ app.post('/api/login', (req, res) => {
 });
 
 // Logout route
-app.post('/api/logout', (req, res) => {
+app.post('/api/users/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error('Logout error:', err);
@@ -63,7 +74,7 @@ app.post('/api/logout', (req, res) => {
 });
 
 // Signup route
-app.post('/api/signup', (req, res) => {
+app.post('/api/users/signup', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
@@ -79,7 +90,7 @@ app.post('/api/signup', (req, res) => {
 });
 
 // Check login status
-app.get('/api/user', (req, res) => {
+app.get('/api/users/user', (req, res) => {
   if (req.session.user) {
     res.json({ loggedIn: true, username: req.session.user.username });
   } else {
@@ -87,8 +98,7 @@ app.get('/api/user', (req, res) => {
   }
 });
 
-// Resources routes (updated in Step 3 for Task 11)
-import resourcesRouter from './routes/resources.mjs';
+// Resources routes
 app.use('/api', resourcesRouter);
 
 ViteExpress.listen(app, PORT, () =>

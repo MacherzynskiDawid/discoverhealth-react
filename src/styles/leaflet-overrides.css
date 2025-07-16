@@ -1,0 +1,19 @@
+/* Part G: Override Leaflet CSS for browser compatibility */
+.leaflet-overlay-pane svg {
+  -moz-user-select: none; /* Firefox */
+  -webkit-user-select: none; /* Safari 3+ */
+  user-select: none; /* Chrome 54+, Edge 79+ */
+}
+
+/* Remove -ms-zoom for Firefox compatibility; zoom: 1 is sufficient for old IE */
+.leaflet-oldie .leaflet-popup-content-wrapper {
+  zoom: 1; /* Replace -ms-zoom */
+}
+
+/* Replace -webkit-user-drag with pointer-events for compatibility */
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  -webkit-user-drag: none; /* Keep for Safari */
+  pointer-events: none; /* Standard, prevents dragging in modern browsers */
+}
