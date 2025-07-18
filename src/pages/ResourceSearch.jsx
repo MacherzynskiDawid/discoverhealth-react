@@ -5,16 +5,16 @@ import PropTypes from 'prop-types';
 import { createRoot } from 'react-dom/client';
 import '../styles/leaflet-overrides.css';
 
-// ReviewForm component
+// ReviewForm component (unchanged)
 function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
+  const [reviewText, setReviewText] = useState('');
+  const [localStatus, setLocalStatus] = useState(reviewStatus[resource.id] || '');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const reviewText = e.target.querySelector(`#review-input-${resource.id}`).value;
-    const statusDiv = e.target.querySelector(`#review-status-${resource.id}`);
     if (!reviewText.trim()) {
+      setLocalStatus('Review cannot be empty');
       setReviewStatus({ ...reviewStatus, [resource.id]: 'Review cannot be empty' });
-      statusDiv.style.color = 'red';
-      statusDiv.textContent = 'Review cannot be empty';
       return;
     }
     try {
@@ -27,28 +27,22 @@ function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
       });
       const data = await response.json();
       if (response.ok) {
-        setReviewStatus({
-          ...reviewStatus,
-          [resource.id]: 'Thank you! Your review has been submitted successfully!'
-        });
-        statusDiv.style.color = 'green';
-        statusDiv.textContent = 'Thank you! Your review has been submitted successfully!';
-        e.target.querySelector(`#review-input-${resource.id}`).value = '';
+        setLocalStatus('Thank you! Your review has been submitted successfully!');
+        setReviewText('');
+        setReviewStatus({ ...reviewStatus, [resource.id]: 'Thank you! Your review has been submitted successfully!' });
         setTimeout(() => {
+          setLocalStatus('');
           setReviewStatus({ ...reviewStatus, [resource.id]: '' });
-          statusDiv.textContent = '';
-        }, 3000);
+        }, 30000); // 30 seconds
       } else {
         const errorMsg = data.error || 'Failed to submit review';
+        setLocalStatus(errorMsg);
         setReviewStatus({ ...reviewStatus, [resource.id]: errorMsg });
-        statusDiv.style.color = 'red';
-        statusDiv.textContent = errorMsg;
         console.error('Review submission failed:', errorMsg);
       }
     } catch (err) {
+      setLocalStatus('Error: ' + err.message);
       setReviewStatus({ ...reviewStatus, [resource.id]: 'Error: ' + err.message });
-      statusDiv.style.color = 'red';
-      statusDiv.textContent = 'Error: ' + err.message;
       console.error('Review submission error:', err.message);
     }
   };
@@ -60,8 +54,8 @@ function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
       {user && user.username ? (
         <form id={`review-form-${resource.id}`} onSubmit={handleSubmit}>
           <textarea
-            id={`review-input-${resource.id}`}
-            name={`review-${resource.id}`}
+            value={reviewText}
+            onChange={(e) => setReviewText(e.target.value)}
             placeholder="Write your review"
             rows="3"
             style={{ width: '100%' }}
@@ -73,14 +67,13 @@ function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
         <p style={{ color: 'red' }}>You must be logged in to submit a review</p>
       )}
       <div
-        id={`review-status-${resource.id}`}
         style={{
-          color: reviewStatus[resource.id]?.includes('successfully') ? 'green' : 'red',
+          color: localStatus.includes('successfully') ? 'green' : 'red',
           fontWeight: 'bold',
           marginTop: '5px'
         }}
       >
-        {reviewStatus[resource.id] || ''}
+        {localStatus}
       </div>
     </div>
   );
@@ -99,7 +92,7 @@ ReviewForm.propTypes = {
   setReviewStatus: PropTypes.func.isRequired
 };
 
-// Function to create popup content
+// Helper function to create popup content
 function createPopupContent(resource, user, reviewStatus, setReviewStatus) {
   const container = document.createElement('div');
   const root = createRoot(container);
@@ -121,6 +114,7 @@ export default function ResourceSearch({ user }) {
   const [reviewStatus, setReviewStatus] = useState({});
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const openPopupIdRef = useRef(null); // Track open popup
 
   // Log user prop for debugging
   useEffect(() => {
@@ -146,6 +140,16 @@ export default function ResourceSearch({ user }) {
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
         shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
       });
+
+      // Track popup open/close events
+      mapRef.current.on('popupopen', (e) => {
+        const marker = e.popup._source;
+        const resourceId = markersRef.current.find(m => m === marker)?.resourceId;
+        openPopupIdRef.current = resourceId || null;
+      });
+      mapRef.current.on('popupclose', () => {
+        openPopupIdRef.current = null;
+      });
     }
 
     // Cleanup on unmount
@@ -159,16 +163,19 @@ export default function ResourceSearch({ user }) {
     };
   }, []);
 
-  // Update markers when user prop changes
+  // Update markers when user, resources, or reviewStatus changes
   useEffect(() => {
     if (resources.length > 0) {
-      console.log('Updating markers due to user change:', user);
+      console.log('Updating markers due to user/resources/reviewStatus change:', user);
       updateMarkers();
     }
   }, [user, resources, reviewStatus]);
 
   // Function to update markers
   const updateMarkers = () => {
+    // Store the ID of the currently open popup
+    const previouslyOpenPopupId = openPopupIdRef.current;
+
     // Clear existing markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
@@ -180,12 +187,18 @@ export default function ResourceSearch({ user }) {
         const marker = L.marker([resource.lat, resource.lon])
           .addTo(mapRef.current)
           .bindPopup(popupContent, { autoClose: false, closeOnClick: false });
+        marker.resourceId = resource.id; // Attach resource ID to marker
         markersRef.current.push(marker);
+
+        // Re-open the popup if it was previously open
+        if (previouslyOpenPopupId && resource.id === previouslyOpenPopupId) {
+          marker.openPopup();
+        }
       }
     });
 
-    // Adjust map view if resources exist
-    if (resources.length > 0 && resources[0].lat && resources[0].lon) {
+    // Adjust map view only if no popup is open and resources exist
+    if (!previouslyOpenPopupId && resources.length > 0 && resources[0].lat && resources[0].lon) {
       const bounds = L.latLngBounds(resources.map(r => [r.lat, r.lon]).filter(([lat, lon]) => lat && lon));
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }

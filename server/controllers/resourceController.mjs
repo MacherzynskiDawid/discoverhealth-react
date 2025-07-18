@@ -23,7 +23,15 @@ class ResourceController {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
-      const resourceId = this.resourceDAO.createResource({ name, category, country, region, lat, lon, description });
+      const resourceId = this.resourceDAO.createResource({
+        name,
+        category,
+        country,
+        region,
+        lat,
+        lon,
+        description
+      });
       res.status(201).json({ id: resourceId });
     } catch (err) {
       console.error('Database error:', err);
