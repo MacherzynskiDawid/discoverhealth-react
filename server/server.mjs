@@ -3,8 +3,8 @@ import cors from 'cors';
 import ViteExpress from 'vite-express';
 import rateLimit from 'express-rate-limit';
 import { requestLogger, sessionMiddleware } from './middleware/middleware.mjs';
-import routeResources from './routeResources.mjs';
-import routeUsers from './routeUsers.mjs';
+import routeResources from './routes/routeResources.mjs';
+import routeUsers from './routes/routeUsers.mjs';
 import userController from './controllers/userController.mjs';
 
 const app = express();
