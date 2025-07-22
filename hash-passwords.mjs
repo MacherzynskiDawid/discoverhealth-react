@@ -1,4 +1,4 @@
-// This updates all existing user passwords to hashed versions
+// Task 10: Prepares database for secure login by hashing existing user passwords
 import Database from 'better-sqlite3';
 import bcrypt from 'bcrypt';
 

@@ -1,3 +1,4 @@
+// Part G: Configures Vite with React plugin for React-based front-end development
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 

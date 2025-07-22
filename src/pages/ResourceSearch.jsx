@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 import { createRoot } from 'react-dom/client';
 import '../styles/leaflet-overrides.css';
 
-// ReviewForm component (unchanged)
+// Task 13: Review form component for submitting reviews
 function ReviewForm({ resource, user, reviewStatus, setReviewStatus }) {
   const [reviewText, setReviewText] = useState('');
   const [localStatus, setLocalStatus] = useState(reviewStatus[resource.id] || '');
@@ -121,7 +121,7 @@ export default function ResourceSearch({ user }) {
     console.log('ResourceSearch user prop:', user);
   }, [user]);
 
-  // Initialize Leaflet map
+  // Task 8: Initialize Leaflet map with OpenStreetMap for resource display
   useEffect(() => {
     console.log('Initializing ResourceSearch map');
     if (!mapRef.current) {
@@ -204,7 +204,7 @@ export default function ResourceSearch({ user }) {
     }
   };
 
-  // Fetch resources by region
+  // Task 4: Fetch resources by region with AJAX
   const handleSearch = async () => {
     try {
       console.log('Searching resources for region:', region);
@@ -227,7 +227,7 @@ export default function ResourceSearch({ user }) {
     }
   };
 
-  // Handle resource recommendation
+  // Task 6 & 11: Handle resource recommendation with AJAX, restricted to logged-in users
   const handleRecommend = async (id) => {
     if (!user || !user.username) {
       setError('You must be logged in to recommend a resource');

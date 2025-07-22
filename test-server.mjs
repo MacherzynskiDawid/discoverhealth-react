@@ -1,3 +1,4 @@
+// Task 1: Simple test server to verify basic GET endpoint functionality
 import express from 'express';
 import cors from 'cors';
 

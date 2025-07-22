@@ -7,6 +7,7 @@ import routeResources from './routes/routeResources.mjs';
 import routeUsers from './routes/routeUsers.mjs';
 import userController from './controllers/userController.mjs';
 
+// Task 1: Initialize Express app and configure CORS for regional resource lookup
 const app = express();
 const PORT = 3000;
 
@@ -26,7 +27,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 
-// Rate limit login endpoint
+// Task 3: Configure rate limiting for security, indirectly supporting recommendation endpoint
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 attempts per window
@@ -35,7 +36,7 @@ const loginLimiter = rateLimit({
 
 app.use(express.json());
 
-// Error handling for invalid JSON
+// Security: Handle invalid JSON to prevent injection attacks
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({ error: 'Invalid JSON in request body' });
@@ -43,21 +44,22 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+// Task 1 & 3: Apply middleware for logging and session management
 app.use(requestLogger);
 app.use(sessionMiddleware);
 
-// Test endpoint
+// Task 1: Test endpoint to verify server is running
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Express server is running' });
 });
 
-// User routes
+// Task 1: Route for user-related endpoints (placeholder for future login functionality)
 app.use('/api/users', routeUsers);
 
-// Resources routes
+// Task 1 & 3: Route for resource-related endpoints (handles lookup and recommendations)
 app.use('/api', routeResources);
 
-// General error handler
+// Security: General error handler to catch and log server errors
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ error: 'Internal server error' });
