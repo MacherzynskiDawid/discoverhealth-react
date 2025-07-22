@@ -1,5 +1,6 @@
 import ResourceDAO from '../daos/resourceDAO.mjs';
 import ReviewDAO from '../daos/reviewDAO.mjs';
+import xss from 'xss';
 
 class ResourceController {
   constructor() {
@@ -19,18 +20,37 @@ class ResourceController {
 
   createResource(req, res) {
     const { name, category, country, region, lat, lon, description } = req.body;
-    if (!name || !category || !country || !region || !lat || !lon) {
-      return res.status(400).json({ error: 'Missing required fields' });
+
+    // Validate inputs with regex
+    const validStringPattern = /^[0-9A-Za-z\s_]+$/;
+    if (!name || !validStringPattern.test(name)) {
+      return res.status(400).json({ error: 'Invalid or missing name' });
     }
+    if (!category || !validStringPattern.test(category)) {
+      return res.status(400).json({ error: 'Invalid or missing category' });
+    }
+    if (!country || !validStringPattern.test(country)) {
+      return res.status(400).json({ error: 'Invalid or missing country' });
+    }
+    if (!region || !validStringPattern.test(req.params.region)) {
+      return res.status(400).json({ error: 'Invalid or missing region' });
+    }
+    if (!lat || isNaN(lat) || lat < -90 || lat > 90) {
+      return res.status(400).json({ error: 'Invalid or missing latitude' });
+    }
+    if (!lon || isNaN(lon) || lon < -180 || lon > 180) {
+      return res.status(400).json({ error: 'Invalid or missing longitude' });
+    }
+
     try {
       const resourceId = this.resourceDAO.createResource({
-        name,
-        category,
-        country,
-        region,
+        name: xss(name),
+        category: xss(category),
+        country: xss(country),
+        region: xss(region),
         lat,
         lon,
-        description
+        description: xss(description)
       });
       res.status(201).json({ id: resourceId });
     } catch (err) {
@@ -68,7 +88,7 @@ class ResourceController {
         return res.status(404).json({ error: 'Resource not found' });
       }
 
-      const reviewId = this.reviewDAO.createReview(id, userId, review);
+      const reviewId = this.reviewDAO.createReview(id, userId, xss(review));
       res.status(201).json({ id: reviewId, message: 'Review added successfully' });
     } catch (err) {
       console.error('Database error:', err);

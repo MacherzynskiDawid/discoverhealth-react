@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import xss from 'xss';
 
 class ReviewDAO {
   constructor(dbPath) {
@@ -7,10 +8,11 @@ class ReviewDAO {
 
   createReview(resourceId, userId, review) {
     try {
+      const sanitizedReview = xss(review.trim());
       const stmt = this.db.prepare(
         'INSERT INTO reviews (resource_id, user_id, review) VALUES (?, ?, ?)'
       );
-      const info = stmt.run(resourceId, userId, review.trim());
+      const info = stmt.run(resourceId, userId, sanitizedReview);
       return info.lastInsertRowid;
     } catch (err) {
       throw new Error('Database error');

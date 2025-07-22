@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node server/server.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,8 +15,12 @@
     "better-sqlite3": "^12.2.0",
     "connect-sqlite3": "^0.9.16",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
+    "dotenv": "^17.2.0",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.0",
     "express-session": "^1.18.1",
+    "bcrypt": "^5.1.1",
+    "xss": "^1.0.15",
     "leaflet": "^1.9.4",
     "prop-types": "^15.8.1",
     "react": "^19.1.0",

@@ -24,8 +24,11 @@ export const sessionMiddleware = session({
     maxAge: 24 * 60 * 60 * 1000, // 1 day
     secure: process.env.NODE_ENV === 'production', // HTTPS in production
     httpOnly: true, // Prevent JavaScript access
-    sameSite: 'strict' // Prevent cross-site requests
-  }
+    sameSite: 'strict', // Prevent CSRF
+    path: '/' // Ensure cookie is sent for all routes
+  },
+  rolling: true, // Refresh session on each request
+  name: 'discoverhealth.sid' // Custom cookie name
 });
 
 export const requireLogin = (req, res, next) => {

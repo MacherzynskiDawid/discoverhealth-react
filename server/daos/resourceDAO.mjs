@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import xss from 'xss';
 
 class ResourceDAO {
   constructor(dbPath) {
@@ -13,10 +14,15 @@ class ResourceDAO {
 
   createResource({ name, category, country, region, lat, lon, description }) {
     try {
+      const sanitizedName = xss(name);
+      const sanitizedCategory = xss(category);
+      const sanitizedCountry = xss(country);
+      const sanitizedRegion = xss(region);
+      const sanitizedDescription = xss(description || '');
       const stmt = this.db.prepare(
         'INSERT INTO healthcare_resources (name, category, country, region, lat, lon, description, recommendations) VALUES (?, ?, ?, ?, ?, ?, ?, 0)'
       );
-      const info = stmt.run(name, category, country, region, lat, lon, description || '');
+      const info = stmt.run(sanitizedName, sanitizedCategory, sanitizedCountry, sanitizedRegion, lat, lon, sanitizedDescription);
       return info.lastInsertRowid;
     } catch (err) {
       throw new Error('Database error');

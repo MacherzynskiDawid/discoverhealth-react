@@ -5,13 +5,17 @@ class UserController {
     this.userDAO = new UserDAO('./database/discoverhealth.db');
   }
 
-  login(req, res) {
+  async login(req, res) {
     const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    const validUsernamePattern = /^[0-9A-Za-z_]+$/;
+    if (!username || !validUsernamePattern.test(username)) {
+      return res.status(400).json({ error: 'Invalid or missing username' });
+    }
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
     try {
-      const user = this.userDAO.getUser(username, password);
+      const user = await this.userDAO.getUser(username, password);
       if (!user) {
         return res.status(401).json({ error: 'Invalid username or password' });
       }
@@ -35,8 +39,12 @@ class UserController {
 
   signup(req, res) {
     const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    const validUsernamePattern = /^[0-9A-Za-z_]+$/;
+    if (!username || !validUsernamePattern.test(username)) {
+      return res.status(400).json({ error: 'Invalid or missing username' });
+    }
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
     try {
       const userId = this.userDAO.createUser(username, password);
